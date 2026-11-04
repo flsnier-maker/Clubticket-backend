@@ -1,0 +1,223 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  ADMIN
+  ORGANIZER
+  CUSTOMER
+  GATE_STAFF
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  FINISHED
+  CANCELLED
+}
+
+enum OrderStatus {
+  USED
+  PENDING
+  RESERVED
+  PAID
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  PIX
+  CREDIT_CARD
+  BOLETO
+}
+
+enum TicketStatus {
+  VALID
+  USED
+  CANCELLED
+  REFUNDED
+  TRANSFERRED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  cpf           String    @unique
+  phone         String?
+  passwordHash  String
+  role          UserRole  @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  eventsOrganized Event[]      @relation("OrganizerEvents")
+  orders          Order[]
+  tickets         Ticket[]     @relation("OwnerTickets")
+  transfersSent   Transfer[]   @relation("TransfersSent")
+  transfersRecv   Transfer[]   @relation("TransfersReceived")
+  checkinsDone    TicketCheckin[] @relation("StaffCheckins")
+
+  @@map("users")
+}
+
+model Event {
+  id             String      @id @default(uuid())
+  title          String
+  slug           String      @unique
+  description    String?     @db.Text
+  bannerUrl      String?
+  venueName      String
+  city           String
+  state          String
+  address        String
+  startDate      DateTime
+  endDate        DateTime
+  status         EventStatus @default(DRAFT)
+  organizerId    String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organizer      User        @relation("OrganizerEvents", fields: [organizerId], references: [id])
+  sectors        Sector[]
+  tickets        Ticket[]
+
+  @@index([status, startDate])
+  @@map("events")
+}
+
+model Sector {
+  id          String   @id @default(uuid())
+  eventId     String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  batches     Batch[]
+
+  @@map("sectors")
+}
+
+model Batch {
+  id              String   @id @default(uuid())
+  sectorId        String
+  name            String
+  priceInCents    Int
+  feeInCents      Int      @default(0)
+  totalQuantity   Int
+  availableQty    Int
+  maxPerUser      Int      @default(4)
+  startsAt        DateTime
+  endsAt          DateTime
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sector          Sector      @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  orderItems      OrderItem[]
+  tickets         Ticket[]
+
+  @@index([sectorId, isActive])
+  @@map("batches")
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  code            String        @unique
+  userId          String
+  status          OrderStatus   @default(PENDING)
+  totalInCents    Int
+  paymentMethod   PaymentMethod?
+  paymentGateway  String?
+  gatewayTxId     String?
+  pixQrCode       String?       @db.Text
+  pixCopiaECola   String?       @db.Text
+  expiresAt       DateTime
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  tickets         Ticket[]
+
+  @@index([userId, status])
+  @@index([expiresAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String   @id @default(uuid())
+  orderId      String
+  batchId      String
+  quantity     Int
+  unitPrice    Int
+  unitFee      Int
+
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  batch        Batch    @relation(fields: [batchId], references: [id])
+
+  @@map("order_items")
+}
+
+model Ticket {
+  id             String       @id @default(uuid())
+  ticketCode     String       @unique
+  eventId        String
+  batchId        String
+  orderId        String
+  ownerId        String
+  totpSecret     String
+  status         TicketStatus @default(VALID)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  event          Event        @relation(fields: [eventId], references: [id])
+  batch          Batch        @relation(fields: [batchId], references: [id])
+  order          Order        @relation(fields: [orderId], references: [id])
+  owner          User         @relation("OwnerTickets", fields: [ownerId], references: [id])
+  checkins       TicketCheckin[]
+  transfers      Transfer[]
+
+  @@index([ownerId])
+  @@index([eventId, status])
+  @@map("tickets")
+}
+
+model TicketCheckin {
+  id         String   @id @default(uuid())
+  ticketId   String
+  staffId    String
+  gateName   String
+  readHash   String
+  isOffline  Boolean  @default(false)
+  checkedAt  DateTime @default(now())
+
+  ticket     Ticket   @relation(fields: [ticketId], references: [id])
+  staff      User     @relation("StaffCheckins", fields: [staffId], references: [id])
+
+  @@map("ticket_checkins")
+}
+
+model Transfer {
+  id           String   @id @default(uuid())
+  ticketId     String
+  fromUserId   String
+  toUserId     String
+  transferredAt DateTime @default(now())
+
+  ticket       Ticket   @relation(fields: [ticketId], references: [id])
+  fromUser     User     @relation("TransfersSent", fields: [fromUserId], references: [id])
+  toUser       User     @relation("TransfersReceived", fields: [toUserId], references: [id])
+
+  @@map("transfers")
+}

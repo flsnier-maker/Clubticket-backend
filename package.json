@@ -1,0 +1,43 @@
+{
+    "name": "uniticket-backend",
+    "version": "1.0.0",
+    "description": "Backend para plataforma de bilhetagem de alta escala",
+    "main": "dist/server.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/server.js",
+        "dev": "tsx watch src/server.ts",
+        "prisma:generate": "prisma generate",
+        "prisma:migrate": "prisma migrate dev",
+        "test": "vitest run"
+    },
+    "prisma": {
+        "seed": "npx tsx prisma/seed.ts"
+    },
+    "dependencies": {
+        "@fastify/cors": "^8.5.0",
+        "@fastify/jwt": "^8.0.1",
+        "@prisma/client": "^5.10.0",
+        "bcrypt": "^6.0.0",
+        "bcryptjs": "^2.4.3",
+        "dotenv": "^16.4.5",
+        "fastify": "^4.26.0",
+        "ioredis": "^5.3.2",
+        "otplib": "^13.6.0",
+        "qrcode": "^1.5.4",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@types/bcrypt": "^6.0.0",
+        "@types/bcryptjs": "^2.4.6",
+        "@types/node": "^20.11.0",
+        "@types/qrcode": "^1.5.6",
+        "@types/supertest": "^7.2.1",
+        "prisma": "^5.10.0",
+        "supertest": "^7.3.1",
+        "tsx": "^4.7.1",
+        "typescript": "^5.3.3",
+        "vite": "^8.3.5",
+        "vitest": "^5.1.0"
+    }
+}
